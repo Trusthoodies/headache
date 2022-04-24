@@ -144,11 +144,9 @@ def convert_to_html(write_to_file=False):
 
 def main():
     args = parse_arguments()
-   #domains = open(args.domainlist, "r")
-    domains = open("test", "r") #voor debuggen
+    domains = open(args.domainlist, "r")
     fetch_headers(domains)
-    convert_to_html() # voor debuggen
-   #convert_to_html(args.writefile)
+    convert_to_html(args.writefile)
 
 if __name__ == "__main__":
     main()
