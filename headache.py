@@ -8,7 +8,6 @@ def parse_arguments():
     
     return args
 
-
 security_headers = [
     "content-security-policy",
     "x-content-type-options",
@@ -22,10 +21,14 @@ absent_headers = []
 
 def inadequate_csp(domain, header):
     header = header.replace(" ","")
-    script_src_val = re.search("script-src[^;]+", header)[0]
     unsafe_keywords = ["unsafe-eval", "unsafe-inline", "*", "data"]
 
-    if any(ele in script_src_val for ele in unsafe_keywords):
+    try:
+        csp_val = re.search("script-src[^;]+", header)[0]
+    except:
+        csp_val = header
+
+    if any(ele in csp_val for ele in unsafe_keywords):
         print(f"[!] {domain} bevat onveilige CSP waarden.")
         return True
     
@@ -95,8 +98,8 @@ def convert_to_html(write_to_file=False):
 
     table = df.to_html(index=False, table_id="tbl")
     table = table.replace("<td>Onvoldoende</td>","<td class='onvoldoende'>Onvoldoende</td>")
-    table = table.replace("<td>False</td>","<td class='false'>False</td>")
-    table = table.replace("<td>True</td>", "<td class='true'>True</td>")
+    table = table.replace("<td>False</td>","<td class='false'>Afwezig</td>")
+    table = table.replace("<td>True</td>", "<td class='true'>Aanwezig</td>")
     # https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
     css = """
     <style>
