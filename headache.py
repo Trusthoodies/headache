@@ -1,4 +1,4 @@
-from headers import *
+from variables import *
 from helpers import Helpers
 import requests, json, pandas, argparse
 
@@ -48,37 +48,7 @@ def convert_to_html_table(write_location):
     table = table.replace("<td>Absent</td>","<td class='false'>Absent</td>")
     table = table.replace("<td>Present</td>", "<td class='true'>Present</td>")
     # https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
-    css = """
-    <style>
-    .true {
-        color: green;
-    }
-    .insufficient {
-        color: orange;
-    }
-    .false {
-        color: red;
-    }
-    #tbl {
-        font-family: Arial, Helvetica, sans-serif;
-        border-collapse: collapse;
-        width: 100%;
-    }
-    #tbl td, #tbl th {
-        border: 1px solid #ddd;
-        padding: 8px;
-    }
-    #tbl tr:nth-child(even){background-color: #f2f2f2;}
-    #tbl tr:hover {background-color: #ddd;}
-    #tbl th {
-        padding-top: 12px;
-        padding-bottom: 12px;
-        text-align: left;
-        background-color: #04AA6D;
-        color: white;
-    }
-    </style>
-    """
+    
     pretty_table = css + table
 
     if write_location:

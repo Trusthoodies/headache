@@ -1,5 +1,5 @@
 import re
-from headers import issues_list
+from variables import issues_list
 
 class Helpers:
     security_headers = [
