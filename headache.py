@@ -1,112 +1,59 @@
-import requests, json, re, pandas, argparse
+from headers import *
+from helpers import Helpers
+import requests, json, pandas, argparse
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-dl", "--domainlist", help="list of domains")
-    parser.add_argument("-w", "--writefile", help="write to file instead of printing it to the screen")
+    parser.add_argument("-dl", "--domainlist", help="list of domains.")
+    parser.add_argument("-w", "--writehtml", help="Convert output to an HTML table and write to a file.")
+    parser.add_argument("-i", "--issues", help="Show what issue a specific directive has.", action='store_true')
     args = parser.parse_args()
     
     return args
 
-security_headers = [
-    "content-security-policy",
-    "x-content-type-options",
-    "strict-transport-security",
-    "x-frame-options",
-    "referrer-policy",
-    "permissions-policy"
-]
+def fetch_headers(domain_list):
+    for domain in domain_list:
+        headers = {}
+        domain = Helpers.parse_domain(domain)
 
-absent_headers = []
+        response = requests.get(domain, allow_redirects=True)
+        resp_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
 
-def inadequate_csp(domain, header):
-    header = header.replace(" ","")
-    unsafe_keywords = ["unsafe-eval", "unsafe-inline", "*", "data"]
+        headers["domain"] = domain
+        headers["headers"] = resp_headers
 
-    try:
-        csp_val = re.search("script-src[^;]+", header)[0]
-    except:
-        csp_val = header
+        fetched_headers.append(headers)
 
-    if any(ele in csp_val for ele in unsafe_keywords):
-        print(f"[!] {domain} bevat onveilige CSP waarden.")
-        return True
-    
-    return False
-
-def inadequate_hsts(domain, header):
-    min_age = 10368000
-    max_age_val = int(re.search('max-age=(\d+);?', header)[1])
-
-    if "includesubdomains" not in header:
-        print(f"[!] {domain}: mist includeSubDomains")
-        return True
-    elif max_age_val < min_age:
-        print(f"[!] {domain}: Max-age is korter dan 10368000<br>")
-        return True
-
-    return False
-
-def fetch_headers(domains):
-    """ Fetches all response headers from all domains, and checks what headers are not in the security_headers list """
-
-    for domain in domains:
-        domain = domain[:-1]
+def verify_headers():
+    for header_dict in fetched_headers:
+        domain = header_dict['domain']
+        all_headers = header_dict["headers"]
         temp_dict = {"domain" : domain}
-        domain = domain if domain[:4] == "http" else "https://" + domain
-        try:
-            response = requests.get(domain, allow_redirects = True) #verify=False
-            response_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
 
-            for sec_header in security_headers:
-                if sec_header not in response_headers:
-                    temp_dict[sec_header] = False
+        for sec_header in Helpers.security_headers:
+            if sec_header not in header_dict['headers']:
+                temp_dict[sec_header] = "Absent"
+            else:
+                if sec_header in ["content-security-policy", "strict-transport-security"]:
+                    Helpers.is_insufficient(domain, all_headers, temp_dict, sec_header)
                 else:
-                    if sec_header == "content-security-policy":
-                        value_csp = response_headers[sec_header]
+                    temp_dict[sec_header] = "Present"
 
-                        if inadequate_csp(domain, value_csp):
-                            temp_dict[sec_header] = "Onvoldoende"
-                        else:
-                            temp_dict[sec_header] = True
-                    elif sec_header == "strict-transport-security":
-                        value_hsts = response_headers[sec_header]
+        verified_headers.append(temp_dict)
 
-                        if inadequate_hsts(domain,value_hsts):
-                            temp_dict[sec_header] = "Onvoldoende"
-                        else:
-                            temp_dict[sec_header] = True
-                    else:
-                        temp_dict[sec_header] = True
-
-            absent_headers.append(temp_dict)
-        # https://stackoverflow.com/questions/16511337/correct-way-to-try-except-using-python-requests-module
-        except requests.exceptions.HTTPError as errh:
-            print ("Http Error:",errh)
-        except requests.exceptions.ConnectionError as errc:
-            print ("Probleem met verbinding:",errc)
-        except requests.exceptions.Timeout as errt:
-            print ("Timeout Error:",errt)
-        except requests.exceptions.RequestException as err:
-            print ("Iets ging verkeerd, geen idee wat:",err)
-
-
-def convert_to_html(write_to_file=False):
-    """ Converts the  dictionary to a nice HTML table """
-    json_absent_headers = json.dumps(absent_headers)
-    df = pandas.read_json(json_absent_headers)
-
+def convert_to_html_table(write_location):
+    df = pandas.DataFrame.from_dict(verified_headers)
     table = df.to_html(index=False, table_id="tbl")
-    table = table.replace("<td>Onvoldoende</td>","<td class='onvoldoende'>Onvoldoende</td>")
-    table = table.replace("<td>False</td>","<td class='false'>Afwezig</td>")
-    table = table.replace("<td>True</td>", "<td class='true'>Aanwezig</td>")
+    table = table.replace("<td>Insufficient</td>","<td class='insufficient'>Insufficient</td>")
+    table = table.replace("<td>Absent</td>","<td class='false'>Absent</td>")
+    table = table.replace("<td>Present</td>", "<td class='true'>Present</td>")
     # https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
     css = """
     <style>
     .true {
         color: green;
     }
-    .onvoldoende {
+    .insufficient {
         color: orange;
     }
     .false {
@@ -117,16 +64,12 @@ def convert_to_html(write_to_file=False):
         border-collapse: collapse;
         width: 100%;
     }
-
     #tbl td, #tbl th {
         border: 1px solid #ddd;
         padding: 8px;
     }
-
     #tbl tr:nth-child(even){background-color: #f2f2f2;}
-
     #tbl tr:hover {background-color: #ddd;}
-
     #tbl th {
         padding-top: 12px;
         padding-bottom: 12px;
@@ -137,21 +80,28 @@ def convert_to_html(write_to_file=False):
     </style>
     """
     pretty_table = css + table
-    
-    if write_to_file:
-        file = open(write_to_file,"w")
-        file.write(pretty_table)
-        file.close()
-    else:
-        print(pretty_table)
+
+    if write_location:
+        print(f"[+] Writing output to {write_location}")
+        f = open(write_location, "w")
+        f.write(pretty_table)
+        f.close()
+
+
+def show_output(show_issues):
+    if show_issues:
+        print(json.dumps(issues_list))
+    print(json.dumps(verified_headers))
 
 def main():
     args = parse_arguments()
-    domains = open(args.domainlist, "r")
-    #domains = open("test", "r") #voor debuggen
-    fetch_headers(domains)
-    #convert_to_html() # voor debuggen
-    convert_to_html(args.writefile)
+    domain_list = open(args.domainlist, "r")
+    write_location = args.writehtml
+    show_issues = args.issues
 
-if __name__ == "__main__":
-    main()
+    fetch_headers(domain_list)
+    verify_headers()
+    convert_to_html_table(write_location)
+    show_output(show_issues)
+
+main()
