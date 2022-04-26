@@ -40,7 +40,7 @@ class Helpers:
             if max_age_val < min_age:
                 temp[directive] = "Insufficient"
                 issues.append("Max-age is shorter than 10368000")
-            else:
+            if "includesubdomains" in header and max_age_val >= min_age:
                 temp[directive] = "Present"
 
         if issues:
@@ -48,8 +48,6 @@ class Helpers:
         
             issues_dict["issues"] = issues
             issues_list.append(issues_dict)
-
-
 
     @staticmethod
     def parse_domain(domain):
