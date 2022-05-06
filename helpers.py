@@ -7,18 +7,17 @@ class Helpers:
         unsafe_csp_keywords = ["unsafe-eval", "unsafe-inline", "*", "data:"]
         issues = []
         insufficient = False
-        try:
-            #csp_val = re.search("script-src[^;]+", csp_header)[0]
-            csp_val = re.findall("(script|object)-src\s?([^;]+)", csp_header)
-            csp_val = [' '. join([elem for elem in sublist]) for sublist in csp_val]
-            csp_val = ' '.join(csp_val)
-
+        csp_val = re.findall("(script|object)-src\s?([^;]+)", csp_header)
+        csp_val = [' '. join([elem for elem in sublist]) for sublist in csp_val]
+        csp_val = ' '.join(csp_val)
+        
+        if csp_val:
             if any(ele in csp_val for ele in unsafe_csp_keywords):
                 issues.append("CSP contains dangerous keywords.")
                 insufficient = True
             else:
                 insufficient = False
-        except:
+        else:
             issues.append("script-src and/or object-src directive is missing.")
             insufficient = True
 
