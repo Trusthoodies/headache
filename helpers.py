@@ -2,46 +2,59 @@ import re
 from variables import issues_list
 
 class Helpers:
-    security_headers = [
-        "content-security-policy",
-        "x-content-type-options",
-        "strict-transport-security",
-        "x-frame-options",
-        "referrer-policy",
-        "permissions-policy"
-    ]
+    @staticmethod
+    def is_insufficient_csp(csp_header):
+        unsafe_csp_keywords = ["unsafe-eval", "unsafe-inline", "*", "data:"]
+        issues = []
+        insufficient = False
+        try:
+            #csp_val = re.search("script-src[^;]+", csp_header)[0]
+            csp_val = re.findall("(script|object)-src\s?([^;]+)", csp_header)
+            csp_val = [' '. join([elem for elem in sublist]) for sublist in csp_val]
+            csp_val = ' '.join(csp_val)
+
+            if any(ele in csp_val for ele in unsafe_csp_keywords):
+                issues.append("CSP contains dangerous keywords.")
+                insufficient = True
+            else:
+                insufficient = False
+        except:
+            issues.append("script-src and/or object-src directive is missing.")
+            insufficient = True
+
+        return (insufficient, issues)
+
+    @staticmethod
+    def is_insufficient_hsts(hsts_header):
+        min_age = 10368000
+        max_age_val = int(re.search('max-age=(\d+);?', hsts_header)[1])
+        issues = []
+        insufficient = False
+
+        if "includesubdomains" not in hsts_header:
+            insufficient = True
+            issues.append("Missing IncludeSubDomains")
+        if max_age_val < min_age:
+            insufficient = True
+            issues.append("Max-age is shorter than 10368000")
+        if "includesubdomains" in hsts_header and max_age_val >= min_age:
+            insufficient = False
+
+        return (insufficient, issues)
 
     @staticmethod
     def is_insufficient(domain, headers, temp, directive):
         issues = []
+        header = headers[directive]
 
         if directive == "content-security-policy":
-            header = headers[directive]
-            unsafe_csp_keywords = ["unsafe-eval", "unsafe-inline", "*", "data"]
-            try:
-                csp_val = re.search("script-src[^;]+", header)[0]
-                if any(ele in csp_val for ele in unsafe_csp_keywords):
-                    issues.append("CSP contains dangerous keywords.")
-                    temp[directive] = "Insufficient"
-                else:
-                    temp[directive] = "Present"
-            except:
-                issues.append("script-src directive is missing.")
-                temp[directive] = "Insufficient"
-
+            csp = Helpers.is_insufficient_csp(header)
+            temp[directive] = "Insufficient" if  csp[0] else "Present"
+            issues.append(csp[1]) if csp[1] else ""
         elif directive == "strict-transport-security":
-            header = headers[directive]
-            min_age = 10368000
-            max_age_val = int(re.search('max-age=(\d+);?', header)[1])
-
-            if "includesubdomains" not in header:
-                temp[directive] = "Insufficient"
-                issues.append("Missing IncludeSubDomains")
-            if max_age_val < min_age:
-                temp[directive] = "Insufficient"
-                issues.append("Max-age is shorter than 10368000")
-            if "includesubdomains" in header and max_age_val >= min_age:
-                temp[directive] = "Present"
+            hsts = Helpers.is_insufficient_hsts(header)
+            temp[directive] = "Insufficient" if hsts[0] else "Present"
+            issues.append(hsts[1]) if hsts[1] else ""
 
         if issues:
             issues_dict = {"domain" : domain}

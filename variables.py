@@ -1,6 +1,15 @@
 fetched_headers = []
 verified_headers = []
 issues_list = []
+security_headers = [
+    "content-security-policy",
+    "x-content-type-options",
+    "strict-transport-security",
+    "x-frame-options",
+    "referrer-policy",
+    "permissions-policy"
+]
+# https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
 css = """
     <style>
     .true {

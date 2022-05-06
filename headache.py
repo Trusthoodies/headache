@@ -4,19 +4,21 @@ import requests, json, pandas, argparse
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("-dl", "--domainlist", help="list of domains.")
-    parser.add_argument("-w", "--writehtml", help="Convert output to an HTML table and write to a file.")
-    parser.add_argument("-i", "--issues", help="Show what issue a specific directive has.", action='store_true')
+    parser.add_argument("-dl", "--domainlist", help="list of domains.", required=True)
+    parser.add_argument("-w", "--writehtml", help="Convert output to an HTML table and write it to a file.")
+    parser.add_argument("-i", "--issues", help="Show what issue made a header insufficient.", action='store_true')
+    parser.add_argument("-is", "--ignore", help="Ignore ssl errors.", action='store_true')
+    parser.add_argument("-r", "--redirect", help="Follow redirects.", action='store_true')
     args = parser.parse_args()
     
     return args
 
-def fetch_headers(domain_list):
+def fetch_headers(domain_list, ignore_ssl, redirect):
     for domain in domain_list:
         headers = {}
         domain = Helpers.parse_domain(domain)
 
-        response = requests.get(domain, allow_redirects=True)
+        response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
         resp_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
 
         headers["domain"] = domain
@@ -30,7 +32,7 @@ def verify_headers():
         all_headers = header_dict["headers"]
         temp_dict = {"domain" : domain}
 
-        for sec_header in Helpers.security_headers:
+        for sec_header in security_headers:
             if sec_header not in header_dict['headers']:
                 temp_dict[sec_header] = "Absent"
             else:
@@ -42,20 +44,21 @@ def verify_headers():
         verified_headers.append(temp_dict)
 
 def convert_to_html_table(write_location):
+    if not write_location:
+        return 
+
     df = pandas.DataFrame.from_dict(verified_headers)
     table = df.to_html(index=False, table_id="tbl")
     table = table.replace("<td>Insufficient</td>","<td class='insufficient'>Insufficient</td>")
     table = table.replace("<td>Absent</td>","<td class='false'>Absent</td>")
-    table = table.replace("<td>Present</td>", "<td class='true'>Present</td>")
-    # https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
-    
+    table = table.replace("<td>Present</td>", "<td class='true'>Present</td>")    
     pretty_table = css + table
 
-    if write_location:
-        print(f"[+] Writing output to {write_location}")
-        f = open(write_location, "w")
-        f.write(pretty_table)
-        f.close()
+    print(f"\"[+] Writing output to {write_location}\"")
+
+    f = open(write_location, "w")
+    f.write(pretty_table)
+    f.close()
 
 
 def show_output(show_issues):
@@ -66,12 +69,21 @@ def show_output(show_issues):
 def main():
     args = parse_arguments()
     domain_list = open(args.domainlist, "r")
+    ignore_ssl = args.ignore
     write_location = args.writehtml
+    redirect = args.redirect
     show_issues = args.issues
 
-    fetch_headers(domain_list)
+    # domain_list = open("test", "r")
+    # write_location = None
+    # ignore_ssl = True
+    # show_issues = True
+    # redirect = True
+
+    fetch_headers(domain_list, ignore_ssl, redirect)
     verify_headers()
     convert_to_html_table(write_location)
     show_output(show_issues)
 
-main()
+if __name__ == "__main__":
+    main()
