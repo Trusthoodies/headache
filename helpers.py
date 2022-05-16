@@ -18,7 +18,7 @@ class Helpers:
             else:
                 insufficient = False
         else:
-            issues.append("script-src and/or object-src directive is missing.")
+            issues.append("script-src and/or object-src directive are missing.")
             insufficient = True
 
         return (insufficient, issues)

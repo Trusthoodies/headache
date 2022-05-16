@@ -11,7 +11,7 @@ security_headers = [
 ]
 # https://www.w3schools.com/css/tryit.asp?filename=trycss_table_fancy
 css = """
-    <style>
+<style>
     .true {
         color: green;
     }
@@ -39,5 +39,5 @@ css = """
         background-color: #04AA6D;
         color: white;
     }
-    </style>
+</style>
     """

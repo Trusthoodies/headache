@@ -17,8 +17,14 @@ def fetch_headers(domain_list, ignore_ssl, redirect):
     for domain in domain_list:
         headers = {}
         domain = Helpers.parse_domain(domain)
-
-        response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
+        
+        try:
+            response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
+        except:
+            issue = {"domain" : domain, "issue" : "Couldn't reach domain"}
+            issues_list.append(issue)
+            continue
+        
         resp_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
 
         headers["domain"] = domain
