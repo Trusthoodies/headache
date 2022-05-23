@@ -8,17 +8,19 @@ class Helpers:
         issues = []
         insufficient = False
         csp_val = re.findall("(script|object)-src\s?([^;]+)", csp_header)
+        csp_val = csp_val if csp_val else re.findall("default-src\s?([^;]+)", csp_header)
+
         csp_val = [' '. join([elem for elem in sublist]) for sublist in csp_val]
         csp_val = ' '.join(csp_val)
         
         if csp_val:
             if any(ele in csp_val for ele in unsafe_csp_keywords):
-                issues.append("CSP contains dangerous keywords.")
+                issues.append("CSP contains potential dangerous keywords.")
                 insufficient = True
             else:
                 insufficient = False
         else:
-            issues.append("script-src and/or object-src directive are missing.")
+            issues.append("script-src, default-src and/or object-src directive are missing.")
             insufficient = True
 
         return (insufficient, issues)
@@ -26,6 +28,7 @@ class Helpers:
     @staticmethod
     def is_insufficient_hsts(hsts_header):
         min_age = 10368000
+        hsts_header = hsts_header.replace(" ","")
         max_age_val = int(re.search('max-age=(\d+);?', hsts_header)[1])
         issues = []
         insufficient = False
@@ -49,17 +52,21 @@ class Helpers:
         if directive == "content-security-policy":
             csp = Helpers.is_insufficient_csp(header)
             temp[directive] = "Insufficient" if  csp[0] else "Present"
-            issues.append(csp[1]) if csp[1] else ""
+            issues.extend(csp[1]) if csp[1] else None
         elif directive == "strict-transport-security":
             hsts = Helpers.is_insufficient_hsts(header)
             temp[directive] = "Insufficient" if hsts[0] else "Present"
-            issues.append(hsts[1]) if hsts[1] else ""
+            issues.extend(hsts[1]) if hsts[1] else None
 
         if issues:
-            issues_dict = {"domain" : domain}
-        
-            issues_dict["issues"] = issues
-            issues_list.append(issues_dict)
+            if domain in [issue["domain"] for issue in issues_list]: # if domain is already in the issues_list list
+                index = len(issues_list) - 1
+                issues_list[index]["issues"].extend(issues) 
+            else:
+                issues_dict = {"domain" : domain}
+            
+                issues_dict["issues"] = issues
+                issues_list.append(issues_dict)
 
     @staticmethod
     def parse_domain(domain):

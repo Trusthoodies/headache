@@ -1,6 +1,6 @@
 from variables import *
 from helpers import Helpers
-import requests, json, pandas, argparse
+import requests, json, pandas, argparse, threading
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -13,24 +13,23 @@ def parse_arguments():
     
     return args
 
-def fetch_headers(domain_list, ignore_ssl, redirect):
-    for domain in domain_list:
-        headers = {}
-        domain = Helpers.parse_domain(domain)
-        
-        try:
-            response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
-        except:
-            issue = {"domain" : domain, "issue" : "Couldn't reach domain"}
-            issues_list.append(issue)
-            continue
-        
-        resp_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
+def fetch_headers(domain, ignore_ssl, redirect):
+    headers = {}
+    domain = Helpers.parse_domain(domain)
+    
+    try:
+        response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
+    except:
+        issue = {"domain" : domain, "issues" : "Couldn't reach domain"}
+        issues_list.append(issue)
+        return
+    
+    resp_headers = dict((k.lower(), v.lower()) for k,v in response.headers.items())
 
-        headers["domain"] = domain
-        headers["headers"] = resp_headers
+    headers["domain"] = domain
+    headers["headers"] = resp_headers
 
-        fetched_headers.append(headers)
+    fetched_headers.append(headers)
 
 def verify_headers():
     for header_dict in fetched_headers:
@@ -66,11 +65,24 @@ def convert_to_html_table(write_location):
     f.write(pretty_table)
     f.close()
 
-
 def show_output(show_issues):
     if show_issues:
         print(json.dumps(issues_list))
     print(json.dumps(verified_headers))
+
+def fetch_headers_threaded(domain_list, ignore_ssl, redirect):
+    threads = []
+
+    for domain in domain_list:
+        t = threading.Thread(target=fetch_headers, args=(domain, ignore_ssl, redirect,))
+        t.daemon = True
+        threads.append(t)
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
 
 def main():
     args = parse_arguments()
@@ -79,14 +91,8 @@ def main():
     write_location = args.writehtml
     redirect = args.redirect
     show_issues = args.issues
-
-    # domain_list = open("test", "r")
-    # write_location = None
-    # ignore_ssl = True
-    # show_issues = True
-    # redirect = True
-
-    fetch_headers(domain_list, ignore_ssl, redirect)
+    
+    fetch_headers_threaded(domain_list, ignore_ssl, redirect)
     verify_headers()
     convert_to_html_table(write_location)
     show_output(show_issues)
