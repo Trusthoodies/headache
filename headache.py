@@ -49,9 +49,6 @@ def verify_headers():
         verified_headers.append(temp_dict)
 
 def convert_to_html_table(write_location):
-    if not write_location:
-        return 
-
     df = pandas.DataFrame.from_dict(verified_headers)
     table = df.to_html(index=False, table_id="tbl")
     table = table.replace("<td>Insufficient</td>","<td class='insufficient'>Insufficient</td>")
@@ -94,8 +91,10 @@ def main():
     
     fetch_headers_threaded(domain_list, ignore_ssl, redirect)
     verify_headers()
-    convert_to_html_table(write_location)
     show_output(show_issues)
+    
+    if write_location:
+        convert_to_html_table(write_location)
 
 if __name__ == "__main__":
     main()

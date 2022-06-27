@@ -58,15 +58,17 @@ class Helpers:
             temp[directive] = "Insufficient" if hsts[0] else "Present"
             issues.extend(hsts[1]) if hsts[1] else None
 
-        if issues:
-            if domain in [issue["domain"] for issue in issues_list]: # if domain is already in the issues_list list
-                index = len(issues_list) - 1
-                issues_list[index]["issues"].extend(issues) 
-            else:
-                issues_dict = {"domain" : domain}
-            
-                issues_dict["issues"] = issues
-                issues_list.append(issues_dict)
+        if not issues:
+            return
+        
+        if domain in [issue["domain"] for issue in issues_list]: # if domain is already in the issues_list list
+            index = len(issues_list) - 1
+            issues_list[index]["issues"].extend(issues) 
+        else:
+            issues_dict = {"domain" : domain}
+        
+            issues_dict["issues"] = issues
+            issues_list.append(issues_dict)
 
     @staticmethod
     def parse_domain(domain):
