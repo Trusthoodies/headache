@@ -1,5 +1,6 @@
 import re
 from variables import issues_list
+from urllib.parse import urlparse
 
 class Helpers:
     @staticmethod
@@ -73,6 +74,16 @@ class Helpers:
     @staticmethod
     def parse_domain(domain):
         domain = domain.strip()
-        domain = domain if domain[:4] == "http" else "https://" + domain
+        domain = domain if domain[:4] == "http" else "http://" + domain
+        
+        url = urlparse(domain)
 
-        return domain
+        return f"{url.scheme}://{url.netloc}"
+
+    def parse_list(domain_list):
+        temp_list = []
+        for domain in domain_list:
+            domain = Helpers.parse_domain(domain)
+            temp_list.append(domain)
+
+        return sorted(set(temp_list))

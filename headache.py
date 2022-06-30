@@ -15,10 +15,10 @@ def parse_arguments():
 
 def fetch_headers(domain, ignore_ssl, redirect):
     headers = {}
-    domain = Helpers.parse_domain(domain)
     
     try:
-        response = requests.get(domain, allow_redirects=redirect, verify=not ignore_ssl)
+        response = requests.get(domain, 
+            allow_redirects=redirect, verify=not ignore_ssl)
     except:
         issue = {"domain" : domain, "issues" : "Couldn't reach domain"}
         issues_list.append(issue)
@@ -84,6 +84,7 @@ def fetch_headers_threaded(domain_list, ignore_ssl, redirect):
 def main():
     args = parse_arguments()
     domain_list = open(args.domainlist, "r")
+    domain_list = Helpers.parse_list(domain_list)
     ignore_ssl = args.ignore
     write_location = args.writehtml
     redirect = args.redirect
